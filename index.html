@@ -525,6 +525,100 @@
     }
     .lb-clear-btn:hover { color: #fca5a5; }
 
+    /* ── Live Scoreboard ── */
+    .scoreboard {
+      position: fixed;
+      right: 24px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 215px;
+      background: rgba(8,17,31,0.88);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 16px;
+      overflow: hidden;
+      z-index: 10;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    }
+    .scoreboard::before {
+      content: '';
+      display: block;
+      height: 5px;
+      background: linear-gradient(90deg,
+        #B22234 0%, #B22234 33%,
+        #fff    33%, #fff    66%,
+        #002868 66%, #002868 100%
+      );
+    }
+    .sb-inner { padding: 14px 14px 16px; }
+    .sb-header {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      margin-bottom: 12px;
+    }
+    .sb-live-dot {
+      width: 7px; height: 7px;
+      background: #22c55e;
+      border-radius: 50%;
+      flex-shrink: 0;
+      animation: livepulse 1.5s infinite;
+    }
+    @keyframes livepulse {
+      0%,100% { opacity: 1; box-shadow: 0 0 4px #22c55e; }
+      50%      { opacity: 0.3; box-shadow: none; }
+    }
+    .sb-title {
+      font-size: 0.75rem;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: rgba(255,255,255,0.55);
+    }
+    .sb-empty {
+      font-size: 0.8rem;
+      color: rgba(255,255,255,0.3);
+      text-align: center;
+      padding: 10px 0;
+    }
+    .sb-entry {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 6px;
+      border-radius: 8px;
+      margin-bottom: 2px;
+      animation: sbSlide 0.35s ease;
+    }
+    @keyframes sbSlide {
+      from { opacity: 0; transform: translateX(14px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+    .sb-entry.sb-gold { background: rgba(255,215,0,0.08); }
+    .sb-rank { font-size: 1rem; width: 22px; text-align: center; flex-shrink: 0; }
+    .sb-name {
+      flex: 1;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #fff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .sb-score {
+      font-size: 0.8rem;
+      font-weight: 800;
+      color: #ffd700;
+      flex-shrink: 0;
+    }
+    .sb-time {
+      font-size: 0.7rem;
+      color: rgba(255,255,255,0.35);
+      flex-shrink: 0;
+    }
+    @media (max-width: 1150px) { .scoreboard { display: none; } }
+
     @media (max-width: 480px) {
       .card { padding: 32px 16px 24px; }
       h1 { font-size: 1.75rem; }
@@ -538,6 +632,16 @@
 
 <canvas id="fireworks"></canvas>
 <div class="stars" id="stars"></div>
+
+<div class="scoreboard" id="scoreboard">
+  <div class="sb-inner">
+    <div class="sb-header">
+      <div class="sb-live-dot"></div>
+      <div class="sb-title">Live Scoreboard</div>
+    </div>
+    <div id="sbList"></div>
+  </div>
+</div>
 
 <div class="card">
 
@@ -712,6 +816,9 @@ let currentPlayer = '';
 let quizStartTime = 0;
 let lbReturnScreen = 'intro';
 
+// Load scoreboard on startup
+renderScoreboard();
+
 // ── Fireworks ──
 (function() {
   const canvas = document.getElementById('fireworks');
@@ -858,6 +965,31 @@ function addScore(name, score, total, secs) {
   entries.splice(50);
   saveLB(entries);
   return entries;
+}
+
+// ── Live Scoreboard (sidebar) ──
+function renderScoreboard() {
+  const entries = loadLB().slice(0, 8);
+  const list = document.getElementById('sbList');
+  if (!list) return;
+  list.innerHTML = '';
+
+  if (!entries.length) {
+    list.innerHTML = '<div class="sb-empty">No scores yet — play first! 🇺🇸</div>';
+    return;
+  }
+
+  const medals = ['🥇','🥈','🥉'];
+  entries.forEach((e, i) => {
+    const div = document.createElement('div');
+    div.className = 'sb-entry' + (i === 0 ? ' sb-gold' : '');
+    div.innerHTML = `
+      <div class="sb-rank">${i < 3 ? medals[i] : i + 1}</div>
+      <div class="sb-name">${escHtml(e.name)}</div>
+      <div class="sb-score">${e.score}/${e.total}</div>
+    `;
+    list.appendChild(div);
+  });
 }
 
 // ── Render leaderboard screen ──
@@ -1056,6 +1188,7 @@ function playResultSound(pct) {
 function showResults() {
   const elapsedSecs = Math.round((Date.now() - quizStartTime) / 1000);
   addScore(currentPlayer, score, questions.length, elapsedSecs);
+  renderScoreboard();
 
   showScreen("results");
   const total = questions.length;
